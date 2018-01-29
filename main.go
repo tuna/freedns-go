@@ -9,13 +9,15 @@ import (
 
 func main() {
 	s, err := freedns.NewServer(freedns.Config{
-		FastDNS:  "114.114.114.114",
-		CleanDNS: "8.8.8.8",
+		FastDNS:  "114.114.114.114:53",
+		CleanDNS: "8.8.8.8:53",
+		Listen:   "127.0.0.1:53",
 	})
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalln(err)
 		os.Exit(-1)
 	}
 
-	s.Run()
+	log.Fatalln(s.Run())
+	os.Exit(-1)
 }
