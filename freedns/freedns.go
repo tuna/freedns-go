@@ -1,7 +1,6 @@
 package freedns
 
 import (
-	"fmt"
 	"net"
 	"time"
 
@@ -150,7 +149,6 @@ func (s *Server) handle(w dns.ResponseWriter, req *dns.Msg, net string) {
 		l.Warn()
 	}
 
-	//fmt.Println(res)
 	w.WriteMsg(res)
 }
 
@@ -168,7 +166,6 @@ func (s *Server) LookupNet(req *dns.Msg, net string) (*dns.Msg, string, error) {
 			upstream = s.config.CleanDNS
 		}
 
-		//fmt.Println(req.Id)
 		res, err := resolve(req, upstream, net)
 
 		if err != nil {
@@ -185,9 +182,7 @@ func (s *Server) LookupNet(req *dns.Msg, net string) (*dns.Msg, string, error) {
 		}
 
 		// if it's fastDNS upstream and maybe polluted, just return serverFailure
-		//fmt.Println(upstream, res)
 		if !useClean && (res.Rcode != dns.RcodeSuccess || err != nil || s.maybePolluted(res)) {
-			// fmt.Println("114 failed", err)
 			ch <- nil
 			return
 		}
@@ -295,7 +290,6 @@ func isChinaIP(ip string) bool {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	//fmt.Println(record.Country.IsoCode)
 	return record.Country.IsoCode == "CN"
 }
 
@@ -308,7 +302,6 @@ func genCacheKey(r *dns.Msg, net string) string {
 		s += "_0"
 	}
 	s += "_" + net
-	fmt.Println(s)
 	return s
 }
 
