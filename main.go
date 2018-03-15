@@ -9,9 +9,10 @@ import (
 
 func main() {
 	s, err := freedns.NewServer(freedns.Config{
-		FastDNS:  "114.114.114.114:53",
-		CleanDNS: "8.8.8.8:53",
-		Listen:   "127.0.0.1:53",
+		FastDNS:   "114.114.114.114:53",
+		CleanDNS:  "8.8.8.8:53",
+		Listen:    "127.0.0.1:53",
+		CacheSize: 1024 * 2,
 	})
 	if err != nil {
 		log.Fatalln(err)

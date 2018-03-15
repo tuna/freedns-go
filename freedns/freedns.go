@@ -11,9 +11,10 @@ import (
 )
 
 type Config struct {
-	FastDNS  string
-	CleanDNS string
-	Listen   string
+	FastDNS   string
+	CleanDNS  string
+	Listen    string
+	CacheSize int
 }
 
 type Server struct {
@@ -68,12 +69,12 @@ func NewServer(cfg Config) (*Server, error) {
 	}
 
 	var err error
-	s.chinaDom, err = goc.NewCache("lru", 1024*20)
+	s.chinaDom, err = goc.NewCache("lru", cfg.CacheSize)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	s.cache, err = goc.NewCache("lru", 1024*20)
+	s.cache, err = goc.NewCache("lru", cfg.CacheSize)
 	if err != nil {
 		log.Fatalln(err)
 	}
