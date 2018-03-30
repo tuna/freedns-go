@@ -96,6 +96,7 @@ func (s *Server) Run() error {
 		errChan <- err
 	}()
 
+	// A potential bug, we only exit one server.
 	select {
 	case err := <-errChan:
 		return err
