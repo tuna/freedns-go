@@ -4,10 +4,17 @@ import (
 	"log"
 	"os"
 
+	"net/http"
+	_ "net/http/pprof"
+
 	"github.com/Chenyao2333/freedns-go/freedns"
 )
 
 func main() {
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
+
 	s, err := freedns.NewServer(freedns.Config{
 		FastDNS:   "114.114.114.114:53",
 		CleanDNS:  "8.8.8.8:53",

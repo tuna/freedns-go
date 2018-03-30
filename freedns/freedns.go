@@ -158,8 +158,8 @@ func (s *Server) handle(w dns.ResponseWriter, req *dns.Msg, net string) {
 // Due to implementation, now the error will always be nil,
 // but don't do this assumpation in your code.
 func (s *Server) LookupNet(req *dns.Msg, net string) (*dns.Msg, string, error) {
-	fastCh := make(chan *dns.Msg)
-	cleanCh := make(chan *dns.Msg)
+	fastCh := make(chan *dns.Msg, 10)
+	cleanCh := make(chan *dns.Msg, 10)
 
 	Q := func(ch chan *dns.Msg, useClean bool) {
 		upstream := s.config.FastDNS
