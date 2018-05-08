@@ -1,13 +1,12 @@
 package freedns
 
 import (
-	"net"
 	"time"
 
+	"github.com/Chenyao2333/freedns-go/chinaip"
 	"github.com/Chenyao2333/golang-cache"
 	"github.com/Sirupsen/logrus"
 	"github.com/miekg/dns"
-	geoip2 "github.com/oschwald/geoip2-golang"
 )
 
 type Config struct {
@@ -28,17 +27,7 @@ type Server struct {
 
 type Error string
 
-var geodb *geoip2.Reader
 var log = logrus.New()
-
-func init() {
-	var err error
-	geodb, err = geoip2.Open("GeoLite2-Country.mmdb")
-
-	if err != nil {
-		log.Fatalln(err)
-	}
-}
 
 func (e Error) Error() string {
 	return string(e)
@@ -279,20 +268,12 @@ func containChinaIP(res *dns.Msg) bool {
 		rr, ok := rrs[i].(*dns.A)
 		if ok {
 			ip := rr.A.String()
-			if isChinaIP(ip) {
+			if chinaip.IsChinaIP(ip) {
 				return true
 			}
 		}
 	}
 	return false
-}
-
-func isChinaIP(ip string) bool {
-	record, err := geodb.Country(net.ParseIP(ip))
-	if err != nil {
-		log.Fatalln(err)
-	}
-	return record.Country.IsoCode == "CN"
 }
 
 func genCacheKey(r *dns.Msg, net string) string {

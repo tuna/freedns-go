@@ -16,7 +16,7 @@ func main() {
 	}()
 
 	s, err := freedns.NewServer(freedns.Config{
-		FastDNS:   "114.114.114.114:53",
+		FastDNS:   "10.56.1.1:53",
 		CleanDNS:  "8.8.8.8:53",
 		Listen:    "127.0.0.1:53",
 		CacheSize: 1024 * 2,
