@@ -1,25 +1,46 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"os"
 
-	"net/http"
 	_ "net/http/pprof"
 
 	"github.com/Chenyao2333/freedns-go/freedns"
 )
 
 func main() {
-	go func() {
-		log.Println(http.ListenAndServe("localhost:6060", nil))
-	}()
+	/*
+		go func() {
+			log.Println(http.ListenAndServe("localhost:6060", nil))
+		}()
+	*/
+
+	var (
+		help     bool
+		fastDNS  string
+		cleanDNS string
+		listen   string
+	)
+
+	flag.BoolVar(&help, "--help", false, "This help.")
+	flag.StringVar(&fastDNS, "--fast", "114.114.114.114:53", "The fast/local DNS upstream.")
+	flag.StringVar(&cleanDNS, "--clean", "8.8.8.8:53", "The clean/remote DNS upstream.")
+	flag.StringVar(&listen, "--listen", "0.0.0.0:53", "Listening address.")
+
+	flag.Parse()
+
+	if help {
+		flag.Usage()
+		os.Exit(0)
+	}
 
 	s, err := freedns.NewServer(freedns.Config{
-		FastDNS:   "10.56.1.1:53",
-		CleanDNS:  "8.8.8.8:53",
-		Listen:    "127.0.0.1:53",
-		CacheSize: 1024 * 2,
+		FastDNS:   fastDNS,
+		CleanDNS:  cleanDNS,
+		Listen:    listen,
+		CacheSize: 1024 * 5,
 	})
 	if err != nil {
 		log.Fatalln(err)

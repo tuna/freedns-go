@@ -123,9 +123,7 @@ func (s *Server) handle(w dns.ResponseWriter, req *dns.Msg, net string) {
 		}
 	}
 
-	// SetRcode will set res as reply of req,
-	// and also set rcode
-	res.SetRcode(req, res.Rcode)
+	res.SetReply(req)
 
 	l := log.WithFields(logrus.Fields{
 		"op":       "handle-LookupNet",
