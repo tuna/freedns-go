@@ -18,23 +18,16 @@ func main() {
 	*/
 
 	var (
-		help     bool
 		fastDNS  string
 		cleanDNS string
 		listen   string
 	)
 
-	flag.BoolVar(&help, "--help", false, "This help.")
-	flag.StringVar(&fastDNS, "--fast", "114.114.114.114:53", "The fast/local DNS upstream.")
-	flag.StringVar(&cleanDNS, "--clean", "8.8.8.8:53", "The clean/remote DNS upstream.")
-	flag.StringVar(&listen, "--listen", "0.0.0.0:53", "Listening address.")
+	flag.StringVar(&fastDNS, "f", "114.114.114.114:53", "The fast/local DNS upstream.")
+	flag.StringVar(&cleanDNS, "c", "8.8.8.8:53", "The clean/remote DNS upstream.")
+	flag.StringVar(&listen, "l", "0.0.0.0:53", "Listening address.")
 
 	flag.Parse()
-
-	if help {
-		flag.Usage()
-		os.Exit(0)
-	}
 
 	s, err := freedns.NewServer(freedns.Config{
 		FastDNS:   fastDNS,
