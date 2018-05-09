@@ -5,22 +5,36 @@ import (
 	"strings"
 )
 
+type Error string
+
+func (e Error) Error() string {
+	return string(e)
+}
+
 // IP2Int converts ip from string format to int format
-func IP2Int(ip string) int {
-	var strs = strings.Split(ip, ".")
-	var a, b, c, d int
-	a, _ = strconv.Atoi(strs[0])
-	b, _ = strconv.Atoi(strs[1])
-	c, _ = strconv.Atoi(strs[2])
-	d, _ = strconv.Atoi(strs[3])
-	return a*256*256*256 + b*256*256 + c*256 + d
+func IP2Int(ip string) (int, error) {
+	strs := strings.Split(ip, ".")
+	if len(strs) != 4 {
+		return -1, Error("isn't ipv4 addr")
+	}
+	ret := 0
+	mul := 1
+	for i := 3; i >= 0; i-- {
+		a, err := strconv.Atoi(strs[i])
+		if err != nil {
+			return -1, err
+		}
+		ret += a * mul
+		mul *= 256
+	}
+	return ret, nil
 }
 
 // IsChinaIP returns whether a IPv4 address belong to China
 func IsChinaIP(ip string) bool {
-	var i = IP2Int(ip)
+	var i, _ = IP2Int(ip)
 	var l = 0
-	var r = len(chinaIPs)
+	var r = len(chinaIPs) - 1
 	for l <= r {
 		var mid = int((l + r) / 2)
 		if i < chinaIPs[mid][0] {
