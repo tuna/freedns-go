@@ -12,19 +12,19 @@ func (e Error) Error() string {
 }
 
 // IP2Int converts ip from string format to int format
-func IP2Int(ip string) (int, error) {
+func IP2Int(ip string) (uint32, error) {
 	strs := strings.Split(ip, ".")
 	if len(strs) != 4 {
-		return -1, Error("isn't ipv4 addr")
+		return 0, Error("not ipv4 addr")
 	}
-	ret := 0
-	mul := 1
+	ret := uint32(0)
+	mul := uint32(1)
 	for i := 3; i >= 0; i-- {
 		a, err := strconv.Atoi(strs[i])
 		if err != nil {
-			return -1, err
+			return 0, err
 		}
-		ret += a * mul
+		ret += uint32(a) * mul
 		mul *= 256
 	}
 	return ret, nil
@@ -32,7 +32,10 @@ func IP2Int(ip string) (int, error) {
 
 // IsChinaIP returns whether a IPv4 address belong to China
 func IsChinaIP(ip string) bool {
-	var i, _ = IP2Int(ip)
+	var i, err = IP2Int(ip)
+	if err != nil {
+		return false
+	}
 	var l = 0
 	var r = len(chinaIPs) - 1
 	for l <= r {

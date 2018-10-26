@@ -26,7 +26,7 @@ def parse(cidr):
 def gen():
     s = """package chinaip
 
-var chinaIPs = [][]int{
+var chinaIPs = [][]uint32{
 """
     cidrs = cidr_list()
     for cidr in cidrs:
