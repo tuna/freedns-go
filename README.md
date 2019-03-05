@@ -19,3 +19,5 @@ sudo ./freedns-go -f 114.114.114.114:53 -c 8.8.8.8:53 -l 0.0.0.0:53
 ```
 host baidu.com 127.0.0.1
 ```
+
+**freedns-go just dispatch your queries to the optimal upstream. You should ensure you can access remote DNS upstream (e.g. 8.8.8.8) by yourself. You can do that by port forwarding, or anyways you like.**
