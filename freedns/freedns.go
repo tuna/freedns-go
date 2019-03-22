@@ -3,10 +3,10 @@ package freedns
 import (
 	"time"
 
-	"github.com/Chenyao2333/freedns-go/chinaip"
 	"github.com/Chenyao2333/golang-cache"
 	"github.com/Sirupsen/logrus"
 	"github.com/miekg/dns"
+	"github.com/tuna/freedns-go/chinaip"
 )
 
 type Config struct {

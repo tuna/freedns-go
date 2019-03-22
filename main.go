@@ -7,7 +7,7 @@ import (
 
 	_ "net/http/pprof"
 
-	"github.com/Chenyao2333/freedns-go/freedns"
+	"github.com/tuna/freedns-go/freedns"
 )
 
 func main() {
