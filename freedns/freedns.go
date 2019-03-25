@@ -227,16 +227,25 @@ func resolve(req *dns.Msg, upstream string, net string) (*dns.Msg, error) {
 }
 
 func (s *Server) maybePolluted(res *dns.Msg) bool {
+	// not contain any valid response
+	if len(res.Answer)+len(res.Ns)+len(res.Extra) == 0 {
+		return true
+	}
+
+	// contain A; If it's none China IP, it maybe polluted
 	if containA(res) {
 		china := containChinaIP(res)
 		s.chinaDom.Set(res.Question[0].Name, china)
 		return !china
 	}
 
+	// not sure, but it's not China domain
 	china, ok := s.chinaDom.Get(res.Question[0].Name)
 	if ok {
 		return !china.(bool)
 	}
+
+	// otherwith, it's trustable response
 	return false
 }
 
