@@ -20,4 +20,4 @@ host baidu.com 127.0.0.1
 
 ![](https://pppublic.oss-cn-beijing.aliyuncs.com/pics/%E5%B1%8F%E5%B9%95%E5%BF%AB%E7%85%A7%202018-05-08%20%E4%B8%8B%E5%8D%889.49.36.png)
 
-freedns-go just dispatches your queries to the optimal upstreams. Your network should be able to reach those upstreams.s (e.g. 8.8.8.8). You can do that by port forwarding, or anyways you like..**
+**Note: freedns-go just dispatches your queries to the optimal upstreams. Your network should be able to reach those upstreams.s (e.g. 8.8.8.8). You can do that by port forwarding, or anyways you like..**
