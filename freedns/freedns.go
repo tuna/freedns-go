@@ -115,44 +115,25 @@ func (s *Server) Shutdown() {
 
 func (s *Server) handle(w dns.ResponseWriter, req *dns.Msg, net string) {
 	res := &dns.Msg{}
-	hit := false
-	var err error
 
 	if len(req.Question) < 1 {
 		res.SetRcode(req, dns.RcodeBadName)
 		w.WriteMsg(res)
 		log.WithFields(logrus.Fields{
-			"op":     "handle_request",
-			"domain": "[request without questions]",
-			"status": dns.RcodeToString[res.Rcode],
+			"op":  "handle_request",
+			"msg": "request without questions",
 		}).Warn()
 		return
 	}
 
-	qname := req.Question[0].Name
-	upstream := ""
-	if res, hit = s.LookupHosts(req); hit {
-		upstream = "hosts"
-	} else if res, hit = s.LookupCache(req, net); hit {
-		upstream = "cache"
-	} else {
-		upstream = "net"
-		res, upstream, err = s.LookupNet(req, net)
-		if err != nil {
-			log.Error(err)
-		}
-		if res == nil {
-			res = &dns.Msg{}
-			res.SetRcode(req, dns.RcodeServerFailure)
-		}
-	}
+	res, upstream := s.lookup(req.Question[0], net)
 	res.SetRcode(req, res.Rcode)
 	w.WriteMsg(res)
 
 	// logging
 	l := log.WithFields(logrus.Fields{
 		"op":       "handle_request",
-		"domain":   qname,
+		"domain":   req.Question[0].Name,
 		"type":     dns.TypeToString[req.Question[0].Qtype],
 		"upstream": upstream,
 		"status":   dns.RcodeToString[res.Rcode],
@@ -162,6 +143,13 @@ func (s *Server) handle(w dns.ResponseWriter, req *dns.Msg, net string) {
 	} else {
 		l.Warn()
 	}
+}
+
+// lookup queries the dns request `q` on either the local cache or upstreams,
+// and returns the result and which upstream is used. It updates the local
+// if necessary.
+func (s *Server) lookup(q dns.Question, net string) (*dns.Msg, string) {
+
 }
 
 // LookupNet resolve the the dns request through net.
@@ -299,94 +287,4 @@ func containChinaIP(res *dns.Msg) bool {
 		}
 	}
 	return false
-}
-
-func genCacheKey(r *dns.Msg, net string) string {
-	q := r.Question[0]
-	s := q.Name + "_" + dns.TypeToString[q.Qtype]
-	if r.RecursionDesired {
-		s += "_1"
-	} else {
-		s += "_0"
-	}
-	s += "_" + net
-	return s
-}
-
-type cacheEntry struct {
-	putin time.Time
-	reply *dns.Msg
-}
-
-func subTTL(res *dns.Msg, delta int) bool {
-	needUpdate := false
-	S := func(rr []dns.RR) {
-		for i := 0; i < len(rr); i++ {
-			newTTL := int(rr[i].Header().Ttl)
-			newTTL -= delta
-
-			if newTTL <= 0 {
-				newTTL = 3
-				needUpdate = true
-			}
-
-			rr[i].Header().Ttl = uint32(newTTL)
-		}
-	}
-
-	S(res.Answer)
-	S(res.Ns)
-	S(res.Extra)
-
-	return needUpdate
-}
-
-func (s *Server) LookupCache(req *dns.Msg, net string) (*dns.Msg, bool) {
-	key := genCacheKey(req, net)
-	ci, ok := s.cache.Get(key)
-
-	if ok {
-		c := ci.(cacheEntry)
-		delta := time.Now().Sub(c.putin).Seconds()
-
-		r := c.reply.Copy()
-		needUpdate := subTTL(r, int(delta))
-		if needUpdate {
-			go func() {
-				res, upstream, _ := s.LookupNet(req, net)
-
-				l := log.WithFields(logrus.Fields{
-					"op":       "LookupCache-LookupNet",
-					"domain":   req.Question[0].Name,
-					"type":     dns.TypeToString[req.Question[0].Qtype],
-					"upstream": upstream,
-					"status":   dns.RcodeToString[res.Rcode],
-				})
-
-				if res.Rcode != dns.RcodeSuccess {
-					l.Warn()
-				} else {
-					l.Info()
-				}
-			}()
-		}
-
-		return r, true
-	}
-
-	return nil, false
-}
-
-func (s *Server) setCache(res *dns.Msg, net string) {
-	key := genCacheKey(res, net)
-
-	s.cache.Set(key, cacheEntry{
-		putin: time.Now(),
-		reply: res,
-	})
-}
-
-func (s *Server) LookupHosts(req *dns.Msg) (*dns.Msg, bool) {
-	// TODO: implement needed
-	return nil, false
 }
