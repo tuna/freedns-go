@@ -30,10 +30,10 @@ func main() {
 	flag.Parse()
 
 	s, err := freedns.NewServer(freedns.Config{
-		FastDNS:   fastDNS,
-		CleanDNS:  cleanDNS,
-		Listen:    listen,
-		CacheSize: 1024 * 5,
+		FastDNS:  fastDNS,
+		CleanDNS: cleanDNS,
+		Listen:   listen,
+		CacheCap: 1024 * 10,
 	})
 	if err != nil {
 		log.Fatalln(err)

@@ -22,10 +22,10 @@ func Test_append_default_port(t *testing.T) {
 
 func TestSmokingNewRunAndShutdown(t *testing.T) {
 	s, err := NewServer(Config{
-		FastDNS:   "114.114.114.114",
-		CleanDNS:  "1.1.1.1",
-		Listen:    "127.0.0.1:52345",
-		CacheSize: 1024 * 5,
+		FastDNS:  "114.114.114.114",
+		CleanDNS: "1.1.1.1",
+		Listen:   "127.0.0.1:52345",
+		CacheCap: 1024 * 5,
 	})
 	if err != nil {
 		t.Error(err)

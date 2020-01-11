@@ -9,10 +9,10 @@ import (
 )
 
 type Config struct {
-	FastDNS   string
-	CleanDNS  string
-	Listen    string
-	CacheSize int
+	FastDNS  string
+	CleanDNS string
+	Listen   string
+	CacheCap int // the maximum items can be cached
 }
 
 type Server struct {
@@ -21,8 +21,8 @@ type Server struct {
 	udp_server *dns.Server
 	tcp_server *dns.Server
 
-	chinaDom *goc.Cache
-	cache    *goc.Cache
+	chinaDom      *goc.Cache
+	records_cache *dns_cache
 }
 
 type Error string
@@ -71,12 +71,12 @@ func NewServer(cfg Config) (*Server, error) {
 	}
 
 	var err error
-	s.chinaDom, err = goc.NewCache("lru", cfg.CacheSize)
+	s.chinaDom, err = goc.NewCache("lru", cfg.CacheCap)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	s.cache, err = goc.NewCache("lru", cfg.CacheSize)
+	s.records_cache = new_dns_cache(cfg.CacheCap)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -118,7 +118,7 @@ func (s *Server) handle(w dns.ResponseWriter, req *dns.Msg, net string) {
 		res.SetRcode(req, dns.RcodeBadName)
 		w.WriteMsg(res)
 		log.WithFields(logrus.Fields{
-			"op":  "handle_request",
+			"op":  "handle",
 			"msg": "request without questions",
 		}).Warn()
 		return
@@ -130,7 +130,7 @@ func (s *Server) handle(w dns.ResponseWriter, req *dns.Msg, net string) {
 
 	// logging
 	l := log.WithFields(logrus.Fields{
-		"op":       "handle_request",
+		"op":       "handle",
 		"domain":   req.Question[0].Name,
 		"type":     dns.TypeToString[req.Question[0].Qtype],
 		"upstream": upstream,
@@ -144,145 +144,8 @@ func (s *Server) handle(w dns.ResponseWriter, req *dns.Msg, net string) {
 }
 
 // lookup queries the dns request `q` on either the local cache or upstreams,
-// and returns the result and which upstream is used. It updates the local
+// and returns the result and which upstream is used. It updates the local cache
 // if necessary.
 func (s *Server) lookup(q dns.Question, net string) (*dns.Msg, string) {
 	return nil, ""
 }
-
-// // LookupNet resolve the the dns request through net.
-// // The first return value is answer,iff it's nil means failed in resolving.
-// // Due to implementation, now the error will always be nil,
-// // but don't do this assumpation in your code.
-// func (s *Server) LookupNet(req *dns.Msg, net string) (*dns.Msg, string, error) {
-// 	fastCh := make(chan *dns.Msg, 10)
-// 	cleanCh := make(chan *dns.Msg, 10)
-
-// 	Q := func(ch chan *dns.Msg, useClean bool) {
-// 		upstream := s.config.FastDNS
-// 		if useClean {
-// 			upstream = s.config.CleanDNS
-// 		}
-
-// 		res, err := resolve(req, upstream, net)
-
-// 		if err != nil {
-// 			log.WithFields(logrus.Fields{
-// 				"op":       "Resolve",
-// 				"upstream": upstream,
-// 				"domain":   req.Question[0].Name,
-// 			}).Error(err)
-// 		}
-
-// 		if res == nil {
-// 			ch <- nil
-// 			return
-// 		}
-
-// 		// if it's fastDNS upstream and maybe polluted, just return serverFailure
-// 		if !useClean && (res.Rcode != dns.RcodeSuccess || err != nil || s.maybePolluted(res)) {
-// 			ch <- nil
-// 			return
-// 		}
-
-// 		ch <- res
-// 	}
-
-// 	go Q(cleanCh, true)
-// 	go Q(fastCh, false)
-
-// 	// ensure ch must will receive nil after timeout
-// 	go func() {
-// 		time.Sleep(2 * time.Second)
-// 		fastCh <- nil
-// 		cleanCh <- nil
-// 	}()
-
-// 	// first try to resolve by fastDNS
-// 	res := <-fastCh
-// 	if res != nil {
-// 		s.setCache(res, net)
-// 		return res, s.config.FastDNS, nil
-// 	}
-
-// 	// if fastDNS failed, just return result of cleanDNS
-// 	res = <-cleanCh
-// 	if res == nil {
-// 		res = &dns.Msg{}
-// 		res.SetRcode(req, dns.RcodeServerFailure)
-// 	}
-// 	if res.Rcode == dns.RcodeSuccess {
-// 		s.setCache(res, net)
-// 	}
-// 	return res, s.config.CleanDNS, nil
-// }
-
-// func resolve(req *dns.Msg, upstream string, net string) (*dns.Msg, error) {
-// 	r := req.Copy()
-// 	r.Id = dns.Id()
-
-// 	c := &dns.Client{Net: net}
-
-// 	res, _, err := c.Exchange(r, upstream)
-
-// 	return res, err
-// }
-
-// func (s *Server) maybePolluted(res *dns.Msg) bool {
-// 	// not contain any valid response
-// 	if len(res.Answer)+len(res.Ns)+len(res.Extra) == 0 {
-// 		return true
-// 	}
-
-// 	// contain A; If it's none China IP, it maybe polluted
-// 	if containA(res) {
-// 		china := containChinaIP(res)
-// 		s.chinaDom.Set(res.Question[0].Name, china)
-// 		return !china
-// 	}
-
-// 	// not sure, but it's not China domain
-// 	china, ok := s.chinaDom.Get(res.Question[0].Name)
-// 	if ok {
-// 		return !china.(bool)
-// 	}
-
-// 	// otherwith, it's trustable response
-// 	return false
-// }
-
-// func containA(res *dns.Msg) bool {
-// 	var rrs []dns.RR
-
-// 	rrs = append(rrs, res.Answer...)
-// 	rrs = append(rrs, res.Ns...)
-// 	rrs = append(rrs, res.Extra...)
-
-// 	for i := 0; i < len(rrs); i++ {
-// 		_, ok := rrs[i].(*dns.A)
-// 		if ok {
-// 			return true
-// 		}
-// 	}
-// 	return false
-// }
-
-// // containChinaIP judge answers whether contains IP belong to China.
-// func containChinaIP(res *dns.Msg) bool {
-// 	var rrs []dns.RR
-
-// 	rrs = append(rrs, res.Answer...)
-// 	rrs = append(rrs, res.Ns...)
-// 	rrs = append(rrs, res.Extra...)
-
-// 	for i := 0; i < len(rrs); i++ {
-// 		rr, ok := rrs[i].(*dns.A)
-// 		if ok {
-// 			ip := rr.A.String()
-// 			if chinaip.IsChinaIP(ip) {
-// 				return true
-// 			}
-// 		}
-// 	}
-// 	return false
-// }
