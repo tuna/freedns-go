@@ -2,12 +2,10 @@ package freedns
 
 import (
 	"strings"
-	"time"
 
 	goc "github.com/louchenyao/golang-cache"
 	"github.com/miekg/dns"
 	"github.com/sirupsen/logrus"
-	"github.com/tuna/freedns-go/chinaip"
 )
 
 type Config struct {
@@ -149,142 +147,142 @@ func (s *Server) handle(w dns.ResponseWriter, req *dns.Msg, net string) {
 // and returns the result and which upstream is used. It updates the local
 // if necessary.
 func (s *Server) lookup(q dns.Question, net string) (*dns.Msg, string) {
-
+	return nil, ""
 }
 
-// LookupNet resolve the the dns request through net.
-// The first return value is answer,iff it's nil means failed in resolving.
-// Due to implementation, now the error will always be nil,
-// but don't do this assumpation in your code.
-func (s *Server) LookupNet(req *dns.Msg, net string) (*dns.Msg, string, error) {
-	fastCh := make(chan *dns.Msg, 10)
-	cleanCh := make(chan *dns.Msg, 10)
+// // LookupNet resolve the the dns request through net.
+// // The first return value is answer,iff it's nil means failed in resolving.
+// // Due to implementation, now the error will always be nil,
+// // but don't do this assumpation in your code.
+// func (s *Server) LookupNet(req *dns.Msg, net string) (*dns.Msg, string, error) {
+// 	fastCh := make(chan *dns.Msg, 10)
+// 	cleanCh := make(chan *dns.Msg, 10)
 
-	Q := func(ch chan *dns.Msg, useClean bool) {
-		upstream := s.config.FastDNS
-		if useClean {
-			upstream = s.config.CleanDNS
-		}
+// 	Q := func(ch chan *dns.Msg, useClean bool) {
+// 		upstream := s.config.FastDNS
+// 		if useClean {
+// 			upstream = s.config.CleanDNS
+// 		}
 
-		res, err := resolve(req, upstream, net)
+// 		res, err := resolve(req, upstream, net)
 
-		if err != nil {
-			log.WithFields(logrus.Fields{
-				"op":       "Resolve",
-				"upstream": upstream,
-				"domain":   req.Question[0].Name,
-			}).Error(err)
-		}
+// 		if err != nil {
+// 			log.WithFields(logrus.Fields{
+// 				"op":       "Resolve",
+// 				"upstream": upstream,
+// 				"domain":   req.Question[0].Name,
+// 			}).Error(err)
+// 		}
 
-		if res == nil {
-			ch <- nil
-			return
-		}
+// 		if res == nil {
+// 			ch <- nil
+// 			return
+// 		}
 
-		// if it's fastDNS upstream and maybe polluted, just return serverFailure
-		if !useClean && (res.Rcode != dns.RcodeSuccess || err != nil || s.maybePolluted(res)) {
-			ch <- nil
-			return
-		}
+// 		// if it's fastDNS upstream and maybe polluted, just return serverFailure
+// 		if !useClean && (res.Rcode != dns.RcodeSuccess || err != nil || s.maybePolluted(res)) {
+// 			ch <- nil
+// 			return
+// 		}
 
-		ch <- res
-	}
+// 		ch <- res
+// 	}
 
-	go Q(cleanCh, true)
-	go Q(fastCh, false)
+// 	go Q(cleanCh, true)
+// 	go Q(fastCh, false)
 
-	// ensure ch must will receive nil after timeout
-	go func() {
-		time.Sleep(2 * time.Second)
-		fastCh <- nil
-		cleanCh <- nil
-	}()
+// 	// ensure ch must will receive nil after timeout
+// 	go func() {
+// 		time.Sleep(2 * time.Second)
+// 		fastCh <- nil
+// 		cleanCh <- nil
+// 	}()
 
-	// first try to resolve by fastDNS
-	res := <-fastCh
-	if res != nil {
-		s.setCache(res, net)
-		return res, s.config.FastDNS, nil
-	}
+// 	// first try to resolve by fastDNS
+// 	res := <-fastCh
+// 	if res != nil {
+// 		s.setCache(res, net)
+// 		return res, s.config.FastDNS, nil
+// 	}
 
-	// if fastDNS failed, just return result of cleanDNS
-	res = <-cleanCh
-	if res == nil {
-		res = &dns.Msg{}
-		res.SetRcode(req, dns.RcodeServerFailure)
-	}
-	if res.Rcode == dns.RcodeSuccess {
-		s.setCache(res, net)
-	}
-	return res, s.config.CleanDNS, nil
-}
+// 	// if fastDNS failed, just return result of cleanDNS
+// 	res = <-cleanCh
+// 	if res == nil {
+// 		res = &dns.Msg{}
+// 		res.SetRcode(req, dns.RcodeServerFailure)
+// 	}
+// 	if res.Rcode == dns.RcodeSuccess {
+// 		s.setCache(res, net)
+// 	}
+// 	return res, s.config.CleanDNS, nil
+// }
 
-func resolve(req *dns.Msg, upstream string, net string) (*dns.Msg, error) {
-	r := req.Copy()
-	r.Id = dns.Id()
+// func resolve(req *dns.Msg, upstream string, net string) (*dns.Msg, error) {
+// 	r := req.Copy()
+// 	r.Id = dns.Id()
 
-	c := &dns.Client{Net: net}
+// 	c := &dns.Client{Net: net}
 
-	res, _, err := c.Exchange(r, upstream)
+// 	res, _, err := c.Exchange(r, upstream)
 
-	return res, err
-}
+// 	return res, err
+// }
 
-func (s *Server) maybePolluted(res *dns.Msg) bool {
-	// not contain any valid response
-	if len(res.Answer)+len(res.Ns)+len(res.Extra) == 0 {
-		return true
-	}
+// func (s *Server) maybePolluted(res *dns.Msg) bool {
+// 	// not contain any valid response
+// 	if len(res.Answer)+len(res.Ns)+len(res.Extra) == 0 {
+// 		return true
+// 	}
 
-	// contain A; If it's none China IP, it maybe polluted
-	if containA(res) {
-		china := containChinaIP(res)
-		s.chinaDom.Set(res.Question[0].Name, china)
-		return !china
-	}
+// 	// contain A; If it's none China IP, it maybe polluted
+// 	if containA(res) {
+// 		china := containChinaIP(res)
+// 		s.chinaDom.Set(res.Question[0].Name, china)
+// 		return !china
+// 	}
 
-	// not sure, but it's not China domain
-	china, ok := s.chinaDom.Get(res.Question[0].Name)
-	if ok {
-		return !china.(bool)
-	}
+// 	// not sure, but it's not China domain
+// 	china, ok := s.chinaDom.Get(res.Question[0].Name)
+// 	if ok {
+// 		return !china.(bool)
+// 	}
 
-	// otherwith, it's trustable response
-	return false
-}
+// 	// otherwith, it's trustable response
+// 	return false
+// }
 
-func containA(res *dns.Msg) bool {
-	var rrs []dns.RR
+// func containA(res *dns.Msg) bool {
+// 	var rrs []dns.RR
 
-	rrs = append(rrs, res.Answer...)
-	rrs = append(rrs, res.Ns...)
-	rrs = append(rrs, res.Extra...)
+// 	rrs = append(rrs, res.Answer...)
+// 	rrs = append(rrs, res.Ns...)
+// 	rrs = append(rrs, res.Extra...)
 
-	for i := 0; i < len(rrs); i++ {
-		_, ok := rrs[i].(*dns.A)
-		if ok {
-			return true
-		}
-	}
-	return false
-}
+// 	for i := 0; i < len(rrs); i++ {
+// 		_, ok := rrs[i].(*dns.A)
+// 		if ok {
+// 			return true
+// 		}
+// 	}
+// 	return false
+// }
 
-// containChinaIP judge answers whether contains IP belong to China.
-func containChinaIP(res *dns.Msg) bool {
-	var rrs []dns.RR
+// // containChinaIP judge answers whether contains IP belong to China.
+// func containChinaIP(res *dns.Msg) bool {
+// 	var rrs []dns.RR
 
-	rrs = append(rrs, res.Answer...)
-	rrs = append(rrs, res.Ns...)
-	rrs = append(rrs, res.Extra...)
+// 	rrs = append(rrs, res.Answer...)
+// 	rrs = append(rrs, res.Ns...)
+// 	rrs = append(rrs, res.Extra...)
 
-	for i := 0; i < len(rrs); i++ {
-		rr, ok := rrs[i].(*dns.A)
-		if ok {
-			ip := rr.A.String()
-			if chinaip.IsChinaIP(ip) {
-				return true
-			}
-		}
-	}
-	return false
-}
+// 	for i := 0; i < len(rrs); i++ {
+// 		rr, ok := rrs[i].(*dns.A)
+// 		if ok {
+// 			ip := rr.A.String()
+// 			if chinaip.IsChinaIP(ip) {
+// 				return true
+// 			}
+// 		}
+// 	}
+// 	return false
+// }
