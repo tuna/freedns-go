@@ -3,8 +3,8 @@ package freedns
 import (
 	"time"
 
-	"github.com/Chenyao2333/golang-cache"
-	"github.com/Sirupsen/logrus"
+	"github.com/louchenyao/golang-cache"
+	"github.com/sirupsen/logrus"
 	"github.com/miekg/dns"
 	"github.com/tuna/freedns-go/chinaip"
 )
