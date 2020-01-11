@@ -17,5 +17,6 @@ update_db:
 
 test:
 	go test ./chinaip
+	go test ./freedns
 
 .PHONY: build_all update_db test

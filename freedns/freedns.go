@@ -1,11 +1,12 @@
 package freedns
 
 import (
+	"strings"
 	"time"
 
-	"github.com/louchenyao/golang-cache"
-	"github.com/sirupsen/logrus"
+	goc "github.com/louchenyao/golang-cache"
 	"github.com/miekg/dns"
+	"github.com/sirupsen/logrus"
 	"github.com/tuna/freedns-go/chinaip"
 )
 
@@ -18,8 +19,9 @@ type Config struct {
 
 type Server struct {
 	config Config
-	// s[0] servers on udp, s[1] servers on tcp
-	s [2]*dns.Server
+
+	udp_server *dns.Server
+	tcp_server *dns.Server
 
 	chinaDom *goc.Cache
 	cache    *goc.Cache
@@ -33,15 +35,28 @@ func (e Error) Error() string {
 	return string(e)
 }
 
+// append the 53 port number after the ip, if the ip does not has ip infomation.
+// It only works for IPv4 addresses, since it's a little hard to check if a port
+// is in the IPv6 string representation.
+func append_default_port(ip string) string {
+	if strings.Contains(ip, ".") && !strings.Contains(ip, ":") {
+		return ip + ":53"
+	}
+	return ip
+}
+
 func NewServer(cfg Config) (*Server, error) {
 	s := &Server{}
 
 	if cfg.Listen == "" {
-		cfg.Listen = "127.0.0.1:53"
+		cfg.Listen = "127.0.0.1"
 	}
+	cfg.Listen = append_default_port(cfg.Listen)
+	cfg.FastDNS = append_default_port(cfg.FastDNS)
+	cfg.CleanDNS = append_default_port(cfg.CleanDNS)
 	s.config = cfg
 
-	s.s[0] = &dns.Server{
+	s.udp_server = &dns.Server{
 		Addr: s.config.Listen,
 		Net:  "udp",
 		Handler: dns.HandlerFunc(func(w dns.ResponseWriter, req *dns.Msg) {
@@ -49,7 +64,7 @@ func NewServer(cfg Config) (*Server, error) {
 		}),
 	}
 
-	s.s[1] = &dns.Server{
+	s.tcp_server = &dns.Server{
 		Addr: s.config.Listen,
 		Net:  "tcp",
 		Handler: dns.HandlerFunc(func(w dns.ResponseWriter, req *dns.Msg) {
@@ -71,25 +86,31 @@ func NewServer(cfg Config) (*Server, error) {
 	return s, nil
 }
 
+// Run tcp and udp server.
 func (s *Server) Run() error {
-	// Run tcp and udp servers in goroutines.
 	errChan := make(chan error, 2)
 
 	go func() {
-		err := s.s[0].ListenAndServe()
+		err := s.tcp_server.ListenAndServe()
 		errChan <- err
 	}()
 
 	go func() {
-		err := s.s[1].ListenAndServe()
+		err := s.udp_server.ListenAndServe()
 		errChan <- err
 	}()
 
-	// A potential bug, we only exit one server.
 	select {
 	case err := <-errChan:
+		s.tcp_server.Shutdown()
+		s.udp_server.Shutdown()
 		return err
 	}
+}
+
+func (s *Server) Shutdown() {
+	s.tcp_server.Shutdown()
+	s.udp_server.Shutdown()
 }
 
 func (s *Server) handle(w dns.ResponseWriter, req *dns.Msg, net string) {
@@ -100,12 +121,16 @@ func (s *Server) handle(w dns.ResponseWriter, req *dns.Msg, net string) {
 	if len(req.Question) < 1 {
 		res.SetRcode(req, dns.RcodeBadName)
 		w.WriteMsg(res)
+		log.WithFields(logrus.Fields{
+			"op":     "handle_request",
+			"domain": "[request without questions]",
+			"status": dns.RcodeToString[res.Rcode],
+		}).Warn()
 		return
 	}
 
 	qname := req.Question[0].Name
 	upstream := ""
-
 	if res, hit = s.LookupHosts(req); hit {
 		upstream = "hosts"
 	} else if res, hit = s.LookupCache(req, net); hit {
@@ -113,22 +138,20 @@ func (s *Server) handle(w dns.ResponseWriter, req *dns.Msg, net string) {
 	} else {
 		upstream = "net"
 		res, upstream, err = s.LookupNet(req, net)
-
 		if err != nil {
 			log.Error(err)
 		}
-
 		if res == nil {
-			res = serverFailureMsg(req)
+			res = &dns.Msg{}
+			res.SetRcode(req, dns.RcodeServerFailure)
 		}
 	}
-
-	// It can't be repalced by SetReply
-	// SetReply just set rcode to success
 	res.SetRcode(req, res.Rcode)
+	w.WriteMsg(res)
 
+	// logging
 	l := log.WithFields(logrus.Fields{
-		"op":       "handle-LookupNet",
+		"op":       "handle_request",
 		"domain":   qname,
 		"type":     dns.TypeToString[req.Question[0].Qtype],
 		"upstream": upstream,
@@ -139,8 +162,6 @@ func (s *Server) handle(w dns.ResponseWriter, req *dns.Msg, net string) {
 	} else {
 		l.Warn()
 	}
-
-	w.WriteMsg(res)
 }
 
 // LookupNet resolve the the dns request through net.
@@ -201,18 +222,13 @@ func (s *Server) LookupNet(req *dns.Msg, net string) (*dns.Msg, string, error) {
 	// if fastDNS failed, just return result of cleanDNS
 	res = <-cleanCh
 	if res == nil {
-		res = serverFailureMsg(req)
+		res = &dns.Msg{}
+		res.SetRcode(req, dns.RcodeServerFailure)
 	}
 	if res.Rcode == dns.RcodeSuccess {
 		s.setCache(res, net)
 	}
 	return res, s.config.CleanDNS, nil
-}
-
-func serverFailureMsg(req *dns.Msg) *dns.Msg {
-	res := &dns.Msg{}
-	res.SetRcode(req, dns.RcodeServerFailure)
-	return res
 }
 
 func resolve(req *dns.Msg, upstream string, net string) (*dns.Msg, error) {

@@ -11,7 +11,7 @@ func (e Error) Error() string {
 	return string(e)
 }
 
-// IP2Int converts ip from string format to int format
+// IP2Int converts IP from string format to int format
 func IP2Int(ip string) (uint32, error) {
 	strs := strings.Split(ip, ".")
 	if len(strs) != 4 {
@@ -30,7 +30,7 @@ func IP2Int(ip string) (uint32, error) {
 	return ret, nil
 }
 
-// IsChinaIP returns whether a IPv4 address belong to China
+// IsChinaIP returns whether an IPv4 address belongs to China
 func IsChinaIP(ip string) bool {
 	var i, err = IP2Int(ip)
 	if err != nil {
