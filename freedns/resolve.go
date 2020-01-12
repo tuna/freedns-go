@@ -56,7 +56,7 @@ func (this *spoofing_proof_resolver) resolve(req *dns.Msg, net string) (*dns.Msg
 
 	// 2. try to resolve by fast dns. if it contains A record which means we can decide if this is a china domain
 	r := <-fast_ch
-	if containsA(r.res) {
+	if r.res != nil && r.res.Rcode == dns.RcodeSuccess && containsA(r.res) {
 		if containsChinaip(r.res) {
 			this.cn_domains.Set(req.Question[0].Name, true)
 			return r.res, this.fast_upstream
