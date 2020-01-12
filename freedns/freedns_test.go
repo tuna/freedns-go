@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func Test_append_default_port(t *testing.T) {
+func TestAppendDefaultPort(t *testing.T) {
 	cases := []struct {
 		i string
 		o string
