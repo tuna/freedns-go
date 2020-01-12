@@ -58,7 +58,8 @@ func request_to_string(q dns.Question, recursion bool, net string) string {
 	return s
 }
 
-// sub_ttl substracts the ttl of `res` by delta, and returns if it will be expired in 3 seconds.
+// sub_ttl substracts the ttl of `res` by delta in place, 
+// and returns true if it will be expired in 3 seconds.
 func sub_ttl(res *dns.Msg, delta int) bool {
 	needUpdate := false
 	S := func(rr []dns.RR) {
