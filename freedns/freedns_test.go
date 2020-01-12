@@ -14,7 +14,7 @@ func Test_append_default_port(t *testing.T) {
 		{"::1", "::1"},
 	}
 	for _, c := range cases {
-		if append_default_port(c.i) != c.o {
+		if appendDefaultPort(c.i) != c.o {
 			t.Errorf("Expected: %s", c.o)
 		}
 	}
