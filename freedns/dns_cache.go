@@ -7,47 +7,47 @@ import (
 	"github.com/miekg/dns"
 )
 
-type cache_entry struct {
+type cacheEntry struct {
 	putin time.Time
 	reply *dns.Msg
 }
 
-type dns_cache struct {
+type dnsCache struct {
 	backend *goc.Cache
 }
 
-func new_dns_cache(max_cap int) *dns_cache {
-	c, _ := goc.NewCache("lru", max_cap)
-	return &dns_cache{
+func newDNSCache(maxCap int) *dnsCache {
+	c, _ := goc.NewCache("lru", maxCap)
+	return &dnsCache{
 		backend: c,
 	}
 }
 
-func (c *dns_cache) set(res *dns.Msg, net string) {
-	key := request_to_string(res.Question[0], res.RecursionDesired, net)
+func (c *dnsCache) set(res *dns.Msg, net string) {
+	key := requestToString(res.Question[0], res.RecursionDesired, net)
 
-	c.backend.Set(key, cache_entry{
+	c.backend.Set(key, cacheEntry{
 		putin: time.Now(),
 		reply: res.Copy(),
 	})
 }
 
-func (c *dns_cache) lookup(q dns.Question, recursion bool, net string) (*dns.Msg, bool) {
-	key := request_to_string(q, recursion, net)
+func (c *dnsCache) lookup(q dns.Question, recursion bool, net string) (*dns.Msg, bool) {
+	key := requestToString(q, recursion, net)
 	ci, ok := c.backend.Get(key)
 	if ok {
-		entry := ci.(cache_entry)
+		entry := ci.(cacheEntry)
 		res := entry.reply.Copy()
 		delta := time.Now().Sub(entry.putin).Seconds()
-		need_update := sub_ttl(res, int(delta))
+		needUpdate := subTTL(res, int(delta))
 
-		return res, need_update
+		return res, needUpdate
 	}
 	return nil, true
 }
 
-// request_to_string generates a string that uniquely identifies the request.
-func request_to_string(q dns.Question, recursion bool, net string) string {
+// requestToString generates a string that uniquely identifies the request.
+func requestToString(q dns.Question, recursion bool, net string) string {
 	s := q.Name + "_" + dns.TypeToString[q.Qtype] + "_" + dns.ClassToString[q.Qclass]
 	if recursion {
 		s += "_1"
@@ -58,9 +58,9 @@ func request_to_string(q dns.Question, recursion bool, net string) string {
 	return s
 }
 
-// sub_ttl substracts the ttl of `res` by delta in place, 
+// subTTL substracts the ttl of `res` by delta in place,
 // and returns true if it will be expired in 3 seconds.
-func sub_ttl(res *dns.Msg, delta int) bool {
+func subTTL(res *dns.Msg, delta int) bool {
 	needUpdate := false
 	S := func(rr []dns.RR) {
 		for i := 0; i < len(rr); i++ {

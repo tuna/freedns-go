@@ -10,17 +10,17 @@ import (
 
 func Test_spoofing_proof_resolver_resolve(t *testing.T) {
 	c, _ := goc.NewCache("lru", 1024)
-	resolver := &spoofing_proof_resolver{
-		fast_upstream:  "114.114.114.114:53",
-		clean_upstream: "8.8.8.8:53",
-		cn_domains:     c,
+	resolver := &spoofingProofResolver{
+		fastUpstream:  "114.114.114.114:53",
+		cleanUpstream: "8.8.8.8:53",
+		cnDomains:     c,
 	}
 
 	tests := []struct {
-		domain            string
-		qtype             uint16
-		net               string
-		expected_upstream string
+		domain           string
+		qtype            uint16
+		net              string
+		expectedUpstream string
 	}{
 		// expect 8.8.8.8 as the upstream b/c the resolver have
 		// no way to identify this is an China domain without A records
@@ -54,8 +54,8 @@ func Test_spoofing_proof_resolver_resolve(t *testing.T) {
 			res, upstream := resolver.resolve(req, tt.net)
 			end := time.Now()
 			elapsed := end.Sub(start)
-			if upstream != tt.expected_upstream {
-				t.Errorf("spoofing_proof_resolver.resolve() got1 = %v, want %v", upstream, tt.expected_upstream)
+			if upstream != tt.expectedUpstream {
+				t.Errorf("spoofing_proof_resolver.resolve() got1 = %v, want %v", upstream, tt.expectedUpstream)
 			}
 			if len(res.Answer) == 0 {
 				t.Errorf("Expect returning at least one answer")
