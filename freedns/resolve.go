@@ -46,7 +46,7 @@ func (resolver *spoofingProofResolver) resolve(q dns.Question, recursion bool, n
 
 	// send timeout results
 	go func() {
-		time.Sleep(2 * time.Second)
+		time.Sleep(1900 * time.Millisecond)
 		fastCh <- result{nil, Error("timeout")}
 		cleanCh <- result{nil, Error("timeout")}
 	}()
