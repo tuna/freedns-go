@@ -38,6 +38,13 @@ func (resolver *spoofingProofResolver) resolve(q dns.Question, recursion bool, n
 
 	Q := func(ch chan result, upstream string) {
 		res, err := naiveResolve(q, recursion, net, upstream)
+		if res == nil {
+			res = &dns.Msg{
+				MsgHdr: dns.MsgHdr{
+					Rcode: dns.RcodeServerFailure,
+				},
+			}
+		}
 		ch <- result{res, err}
 	}
 
@@ -74,13 +81,6 @@ func (resolver *spoofingProofResolver) resolve(q dns.Question, recursion bool, n
 
 	// 3. the domain may not belong to China, use the clean upstream
 	r = <-cleanCh
-	if r.res == nil {
-		r.res = &dns.Msg{
-			MsgHdr: dns.MsgHdr{
-				Rcode: dns.RcodeServerFailure,
-			},
-		}
-	}
 	return r.res, resolver.cleanUpstream
 }
 
