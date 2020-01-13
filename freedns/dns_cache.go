@@ -28,7 +28,7 @@ func (c *dnsCache) set(res *dns.Msg, net string) {
 
 	c.backend.Set(key, cacheEntry{
 		putin: time.Now(),
-		reply: res.Copy(),
+		reply: res.Copy(), // .Copy() is mandatory
 	})
 }
 
@@ -37,7 +37,7 @@ func (c *dnsCache) lookup(q dns.Question, recursion bool, net string) (*dns.Msg,
 	ci, ok := c.backend.Get(key)
 	if ok {
 		entry := ci.(cacheEntry)
-		res := entry.reply.Copy()
+		res := entry.reply.Copy() // .Copy() is mandatory
 		delta := time.Now().Sub(entry.putin).Seconds()
 		needUpdate := subTTL(res, int(delta))
 

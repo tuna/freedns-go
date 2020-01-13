@@ -18,8 +18,17 @@ type spoofingProofResolver struct {
 	cnDomains *goc.Cache
 }
 
+func newSpoofingProofResolver(fastUpstream string, cleanUpstream string, cacheCap int) *spoofingProofResolver {
+	c, _ := goc.NewCache("lru", cacheCap)
+	return &spoofingProofResolver{
+		fastUpstream:  fastUpstream,
+		cleanUpstream: cleanUpstream,
+		cnDomains:     c,
+	}
+}
+
 // resovle returns the response and which upstream is used
-func (resolver *spoofingProofResolver) resolve(req *dns.Msg, net string) (*dns.Msg, string) {
+func (resolver *spoofingProofResolver) resolve(q dns.Question, recursion bool, net string) (*dns.Msg, string) {
 	type result struct {
 		res *dns.Msg
 		err error
@@ -28,7 +37,7 @@ func (resolver *spoofingProofResolver) resolve(req *dns.Msg, net string) (*dns.M
 	cleanCh := make(chan result, 4)
 
 	Q := func(ch chan result, upstream string) {
-		res, err := naiveResolve(req, upstream, net)
+		res, err := naiveResolve(q, recursion, net, upstream)
 		ch <- result{res, err}
 	}
 
@@ -43,7 +52,7 @@ func (resolver *spoofingProofResolver) resolve(req *dns.Msg, net string) (*dns.M
 	}()
 
 	// 1. if we can distinguish if it is china domain, we directly uses the right upstream
-	isCN, ok := resolver.cnDomains.Get(req.Question[0].Name)
+	isCN, ok := resolver.cnDomains.Get(q.Name)
 	if ok {
 		if isCN.(bool) {
 			r := <-fastCh
@@ -57,25 +66,32 @@ func (resolver *spoofingProofResolver) resolve(req *dns.Msg, net string) (*dns.M
 	r := <-fastCh
 	if r.res != nil && r.res.Rcode == dns.RcodeSuccess && containsA(r.res) {
 		if containsChinaip(r.res) {
-			resolver.cnDomains.Set(req.Question[0].Name, true)
+			resolver.cnDomains.Set(q.Name, true)
 			return r.res, resolver.fastUpstream
 		}
-		resolver.cnDomains.Set(req.Question[0].Name, false)
+		resolver.cnDomains.Set(q.Name, false)
 	}
 
 	// 3. the domain may not belong to China, use the clean upstream
 	r = <-cleanCh
 	if r.res == nil {
-		r.res = &dns.Msg{}
-		r.res.SetRcode(req, dns.RcodeServerFailure)
+		r.res = &dns.Msg{
+			MsgHdr: dns.MsgHdr{
+				Rcode: dns.RcodeServerFailure,
+			},
+		}
 	}
 	return r.res, resolver.cleanUpstream
 }
 
-func naiveResolve(req *dns.Msg, upstream string, net string) (*dns.Msg, error) {
-	r := req.Copy()
-	r.Id = dns.Id()
-
+func naiveResolve(q dns.Question, recursion bool, net string, upstream string) (*dns.Msg, error) {
+	r := &dns.Msg{
+		MsgHdr: dns.MsgHdr{
+			Id:               dns.Id(),
+			RecursionDesired: recursion,
+		},
+		Question: []dns.Question{q},
+	}
 	c := &dns.Client{Net: net}
 
 	res, _, err := c.Exchange(r, upstream)
@@ -84,7 +100,7 @@ func naiveResolve(req *dns.Msg, upstream string, net string) (*dns.Msg, error) {
 		log.WithFields(logrus.Fields{
 			"op":       "naive_resolve",
 			"upstream": upstream,
-			"domain":   req.Question[0].Name,
+			"domain":   q.Name,
 		}).Error(err)
 	}
 

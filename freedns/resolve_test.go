@@ -4,17 +4,11 @@ import (
 	"testing"
 	"time"
 
-	goc "github.com/louchenyao/golang-cache"
 	"github.com/miekg/dns"
 )
 
 func Test_spoofing_proof_resolver_resolve(t *testing.T) {
-	c, _ := goc.NewCache("lru", 1024)
-	resolver := &spoofingProofResolver{
-		fastUpstream:  "114.114.114.114:53",
-		cleanUpstream: "8.8.8.8:53",
-		cnDomains:     c,
-	}
+	resolver := newSpoofingProofResolver("114.114.114.114:53", "8.8.8.8:53", 1024)
 
 	tests := []struct {
 		domain           string
@@ -40,18 +34,14 @@ func Test_spoofing_proof_resolver_resolve(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.domain, func(t *testing.T) {
-			req := &dns.Msg{
-				MsgHdr: dns.MsgHdr{
-					RecursionDesired: true,
-				},
-				Question: []dns.Question{dns.Question{
-					Name:   tt.domain,
-					Qtype:  tt.qtype,
-					Qclass: dns.ClassINET,
-				}},
+			q := dns.Question{
+				Name:   tt.domain,
+				Qtype:  tt.qtype,
+				Qclass: dns.ClassINET,
 			}
+
 			start := time.Now()
-			res, upstream := resolver.resolve(req, tt.net)
+			res, upstream := resolver.resolve(q, true, tt.net)
 			end := time.Now()
 			elapsed := end.Sub(start)
 			if upstream != tt.expectedUpstream {

@@ -31,6 +31,8 @@ func TestAll(t *testing.T) {
 
 	c := newDNSCache(10)
 	c.set(req, "udp")
+
+	// query 1
 	time.Sleep(1 * time.Second)
 	res, upd := c.lookup(req.Question[0], req.RecursionDesired, "udp")
 	if res.Answer[0].(*dns.A).Hdr.Name != req.Answer[0].(*dns.A).Hdr.Name {
@@ -39,9 +41,18 @@ func TestAll(t *testing.T) {
 	if upd || res.Answer[0].(*dns.A).Hdr.Ttl <= 3 {
 		t.Errorf("the ttl should be 4 and do not need to update")
 	}
+
+	// query 2
 	time.Sleep(1 * time.Second)
 	res, upd = c.lookup(req.Question[0], req.RecursionDesired, "udp")
 	if !upd || res.Answer[0].(*dns.A).Hdr.Ttl > 3 {
 		t.Errorf("the tll should be no more than 3 and need to update")
+	}
+
+	// query 3
+	req.Question[0].Name = "random.org"
+	res, upd = c.lookup(req.Question[0], req.RecursionDesired, "udp")
+	if res != nil {
+		t.Errorf("res should be nil")
 	}
 }
