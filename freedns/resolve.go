@@ -36,14 +36,16 @@ func (resolver *spoofingProofResolver) resolve(q dns.Question, recursion bool, n
 	fastCh := make(chan result, 4)
 	cleanCh := make(chan result, 4)
 
+	fail := &dns.Msg{
+		MsgHdr: dns.MsgHdr{
+			Rcode: dns.RcodeServerFailure,
+		},
+	}
+
 	Q := func(ch chan result, upstream string) {
 		res, err := naiveResolve(q, recursion, net, upstream)
 		if res == nil {
-			res = &dns.Msg{
-				MsgHdr: dns.MsgHdr{
-					Rcode: dns.RcodeServerFailure,
-				},
-			}
+			res = fail
 		}
 		ch <- result{res, err}
 	}
@@ -54,8 +56,8 @@ func (resolver *spoofingProofResolver) resolve(q dns.Question, recursion bool, n
 	// send timeout results
 	go func() {
 		time.Sleep(1900 * time.Millisecond)
-		fastCh <- result{nil, Error("timeout")}
-		cleanCh <- result{nil, Error("timeout")}
+		fastCh <- result{fail, Error("timeout")}
+		cleanCh <- result{fail, Error("timeout")}
 	}()
 
 	// 1. if we can distinguish if it is china domain, we directly uses the right upstream
