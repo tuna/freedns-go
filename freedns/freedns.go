@@ -176,6 +176,9 @@ func (s *Server) lookup(req *dns.Msg, net string) (*dns.Msg, string) {
 		}
 	}
 
+	// dns.Msg.SetReply() always set the Rcode to RcodeSuccess  which we do not want
+	rcode := res.Rcode
 	res.SetReply(req)
+	res.Rcode = rcode
 	return res, upstream
 }
