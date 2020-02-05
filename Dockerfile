@@ -9,6 +9,7 @@ WORKDIR /go/src/github.com/tuna/freedns-go
 COPY go.* ./
 RUN go mod download
 COPY . .
+COPY --from=update_db /usr/src/app/db.go chinaip/
 RUN go build -o ./build/freedns-go
 
 
