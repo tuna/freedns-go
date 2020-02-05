@@ -1,9 +1,18 @@
-FROM golang
+FROM python:alpine as update_db
+WORKDIR /usr/src/app
+COPY chinaip .
+RUN pip3 install -r requirements.txt
+RUN python3 update_db.py
 
-WORKDIR $GOPATH/src/github.com/tuna/freedns-go
-COPY . ./
+FROM golang:alpine as builder
+WORKDIR /go/src/github.com/tuna/freedns-go
+COPY go.* ./
+RUN go mod download
+COPY . .
+RUN go build -o ./build/freedns-go
 
-RUN go get -d -v ./...
-RUN go install -v ./...
 
-CMD ["freedns-go", "-f", "114.114.114.114:53", "-c", "8.8.8.8:53", "-l", "0.0.0.0:53"]
+FROM alpine
+COPY --from=builder /go/src/github.com/tuna/freedns-go/build/freedns-go ./
+ENTRYPOINT ["./freedns-go"]
+CMD ["-f", "114.114.114.114:53", "-c", "8.8.8.8:53", "-l", "0.0.0.0:53"]
