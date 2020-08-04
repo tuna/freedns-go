@@ -106,7 +106,7 @@ func naiveResolve(q dns.Question, recursion bool, net string, upstream string) (
 		}).Error(err)
 		// In case the Rcode is initialized as RcodeSuccess but the error occurs.
 		// Without this, the wrong result may be cached and returned.
-		if res.Rcode == dns.RcodeSuccess {
+		if res != nil && res.Rcode == dns.RcodeSuccess {
 			res = nil
 		}
 	}
