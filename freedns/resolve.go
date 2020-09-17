@@ -60,12 +60,21 @@ func (resolver *spoofingProofResolver) resolve(q dns.Question, recursion bool, n
 		cleanCh <- result{fail, Error("timeout")}
 	}()
 
-	// 1. if we can distinguish if it is china domain, we directly uses the right upstream
+	// 1. if we can distinguish if it is a china domain, we directly uses the right upstream
 	isCN, ok := resolver.cnDomains.Get(q.Name)
 	if ok {
 		if isCN.(bool) {
 			r := <-fastCh
-			return r.res, resolver.fastUpstream
+			// The fast upstream returns the success result
+			if r.res != nil && r.res.Rcode == dns.RcodeSuccess {
+				// recheck if it is a china domain, and update the cache
+				// we do this recheck in case that the clean DNS spoofs the domain and returns an IP in China
+				if containsA(r.res) && !containsChinaip(r.res) {
+					resolver.cnDomains.Set(q.Name, false)
+				} else {
+					return r.res, resolver.fastUpstream
+				}
+			}
 		}
 		r := <-cleanCh
 		return r.res, resolver.cleanUpstream
