@@ -7,10 +7,10 @@ import (
 
 // Config stores the configuration for the Server
 type Config struct {
-	FastDNS  string
-	CleanDNS string
-	Listen   string
-	CacheCap int // the maximum items can be cached
+	FastUpstream  string
+	CleanUpstream string
+	Listen        string
+	CacheCap      int // the maximum items can be cached
 }
 
 // Server is type of the freedns server instance
@@ -44,14 +44,18 @@ func NewServer(cfg Config) (*Server, error) {
 	if cfg.Listen, err = normalizeDnsAddress(cfg.Listen); err != nil {
 		return nil, err
 	}
-	if cfg.FastDNS, err = normalizeDnsAddress(cfg.FastDNS); err != nil {
-		return nil, err
-	}
-	if cfg.CleanDNS, err = normalizeDnsAddress(cfg.CleanDNS); err != nil {
-		return nil, err
-	}
-	s.config = cfg
 
+	var fastUpstreamProvider, cleanUpstreamProvider upstreamProvider
+	fastUpstreamProvider, err = newUpstreamProvider(cfg.FastUpstream)
+	if err != nil {
+		return nil, err
+	}
+	cleanUpstreamProvider, err = newUpstreamProvider(cfg.CleanUpstream)
+	if err != nil {
+		return nil, err
+	}
+
+	s.config = cfg
 	s.udpServer = &dns.Server{
 		Addr: s.config.Listen,
 		Net:  "udp",
@@ -70,7 +74,7 @@ func NewServer(cfg Config) (*Server, error) {
 
 	s.recordsCache = newDNSCache(cfg.CacheCap)
 
-	s.resolver = newSpoofingProofResolver(cfg.FastDNS, cfg.CleanDNS, cfg.CacheCap)
+	s.resolver = newSpoofingProofResolver(fastUpstreamProvider, cleanUpstreamProvider, cfg.CacheCap)
 
 	return s, nil
 }

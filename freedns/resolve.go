@@ -11,19 +11,19 @@ import (
 
 // spoofingProofResolver can resolve the DNS request with 100% confidence.
 type spoofingProofResolver struct {
-	fastUpstream  string
-	cleanUpstream string
+	fastUpstreamProvider  upstreamProvider
+	cleanUpstreamProvider upstreamProvider
 
 	// cnDomains caches if a domain belongs to China.
 	cnDomains *goc.Cache
 }
 
-func newSpoofingProofResolver(fastUpstream string, cleanUpstream string, cacheCap int) *spoofingProofResolver {
+func newSpoofingProofResolver(fastUpstreamProvider upstreamProvider, cleanUpstreamProvider upstreamProvider, cacheCap int) *spoofingProofResolver {
 	c, _ := goc.NewCache("lru", cacheCap)
 	return &spoofingProofResolver{
-		fastUpstream:  fastUpstream,
-		cleanUpstream: cleanUpstream,
-		cnDomains:     c,
+		fastUpstreamProvider:  fastUpstreamProvider,
+		cleanUpstreamProvider: cleanUpstreamProvider,
+		cnDomains:             c,
 	}
 }
 
@@ -50,8 +50,11 @@ func (resolver *spoofingProofResolver) resolve(q dns.Question, recursion bool, n
 		ch <- result{res, err}
 	}
 
-	go Q(cleanCh, resolver.cleanUpstream)
-	go Q(fastCh, resolver.fastUpstream)
+	cleanUpstream := resolver.cleanUpstreamProvider.GetUpstream()
+	fastUpstream := resolver.fastUpstreamProvider.GetUpstream()
+
+	go Q(cleanCh, cleanUpstream)
+	go Q(fastCh, fastUpstream)
 
 	// send timeout results
 	go func() {
@@ -72,12 +75,12 @@ func (resolver *spoofingProofResolver) resolve(q dns.Question, recursion bool, n
 				if containsA(r.res) && !containsChinaip(r.res) {
 					resolver.cnDomains.Set(q.Name, false)
 				} else {
-					return r.res, resolver.fastUpstream
+					return r.res, fastUpstream
 				}
 			}
 		}
 		r := <-cleanCh
-		return r.res, resolver.cleanUpstream
+		return r.res, cleanUpstream
 	}
 
 	// 2. try to resolve by fast dns. if it contains A record which means we can decide if this is a china domain
@@ -85,14 +88,14 @@ func (resolver *spoofingProofResolver) resolve(q dns.Question, recursion bool, n
 	if r.res != nil && r.res.Rcode == dns.RcodeSuccess && containsA(r.res) {
 		if containsChinaip(r.res) {
 			resolver.cnDomains.Set(q.Name, true)
-			return r.res, resolver.fastUpstream
+			return r.res, fastUpstream
 		}
 		resolver.cnDomains.Set(q.Name, false)
 	}
 
 	// 3. the domain may not belong to China, use the clean upstream
 	r = <-cleanCh
-	return r.res, resolver.cleanUpstream
+	return r.res, cleanUpstream
 }
 
 func naiveResolve(q dns.Question, recursion bool, net string, upstream string) (*dns.Msg, error) {
