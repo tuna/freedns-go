@@ -1,25 +1,10 @@
 package freedns
 
 import (
-	"github.com/miekg/dns"
 	"testing"
-)
 
-func TestAppendDefaultPort(t *testing.T) {
-	cases := []struct {
-		i string
-		o string
-	}{
-		{"127.0.0.1", "127.0.0.1:53"},
-		{"114.114.114.114:5353", "114.114.114.114:5353"},
-		{"::1", "::1"},
-	}
-	for _, c := range cases {
-		if appendDefaultPort(c.i) != c.o {
-			t.Errorf("Expected: %s", c.o)
-		}
-	}
-}
+	"github.com/miekg/dns"
+)
 
 func TestSmokingNewRunAndShutdown(t *testing.T) {
 	// new the server

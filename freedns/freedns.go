@@ -1,8 +1,6 @@
 package freedns
 
 import (
-	"strings"
-
 	"github.com/miekg/dns"
 	"github.com/sirupsen/logrus"
 )
@@ -35,16 +33,6 @@ func (e Error) Error() string {
 	return string(e)
 }
 
-// append the 53 port number after the ip, if the ip does not has ip infomation.
-// It only works for IPv4 addresses, since it's a little hard to check if a port
-// is in the IPv6 string representation.
-func appendDefaultPort(ip string) string {
-	if strings.Contains(ip, ".") && !strings.Contains(ip, ":") {
-		return ip + ":53"
-	}
-	return ip
-}
-
 // NewServer creates a new freedns server instance.
 func NewServer(cfg Config) (*Server, error) {
 	s := &Server{}
@@ -52,9 +40,16 @@ func NewServer(cfg Config) (*Server, error) {
 	if cfg.Listen == "" {
 		cfg.Listen = "127.0.0.1"
 	}
-	cfg.Listen = appendDefaultPort(cfg.Listen)
-	cfg.FastDNS = appendDefaultPort(cfg.FastDNS)
-	cfg.CleanDNS = appendDefaultPort(cfg.CleanDNS)
+	var err error
+	if cfg.Listen, err = normalizeDnsAddress(cfg.Listen); err != nil {
+		return nil, err
+	}
+	if cfg.FastDNS, err = normalizeDnsAddress(cfg.FastDNS); err != nil {
+		return nil, err
+	}
+	if cfg.CleanDNS, err = normalizeDnsAddress(cfg.CleanDNS); err != nil {
+		return nil, err
+	}
 	s.config = cfg
 
 	s.udpServer = &dns.Server{
