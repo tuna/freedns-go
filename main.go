@@ -21,11 +21,13 @@ func main() {
 		fastDNS  string
 		cleanDNS string
 		listen   string
+		logLevel string
 	)
 
 	flag.StringVar(&fastDNS, "f", "114.114.114.114:53", "The fast/local DNS upstream.")
 	flag.StringVar(&cleanDNS, "c", "8.8.8.8:53", "The clean/remote DNS upstream.")
 	flag.StringVar(&listen, "l", "0.0.0.0:53", "Listening address.")
+	flag.StringVar(&logLevel, "log-level", "", "Set log level: info/warn/error.")
 
 	flag.Parse()
 
@@ -34,6 +36,7 @@ func main() {
 		CleanDNS: cleanDNS,
 		Listen:   listen,
 		CacheCap: 1024 * 10,
+		LogLevel: logLevel,
 	})
 	if err != nil {
 		log.Fatalln(err)

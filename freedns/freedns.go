@@ -13,6 +13,7 @@ type Config struct {
 	CleanDNS string
 	Listen   string
 	CacheCap int // the maximum items can be cached
+	LogLevel string
 }
 
 // Server is type of the freedns server instance
@@ -51,6 +52,9 @@ func NewServer(cfg Config) (*Server, error) {
 
 	if cfg.Listen == "" {
 		cfg.Listen = "127.0.0.1"
+	}
+	if level, parseError := logrus.ParseLevel(cfg.LogLevel); parseError == nil {
+		log.SetLevel(level)
 	}
 	cfg.Listen = appendDefaultPort(cfg.Listen)
 	cfg.FastDNS = appendDefaultPort(cfg.FastDNS)
