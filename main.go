@@ -21,11 +21,13 @@ func main() {
 		fastUpstream  string
 		cleanUpstream string
 		listen        string
+    logLevel string
 	)
 
 	flag.StringVar(&fastUpstream, "f", "114.114.114.114:53", "The fast/local DNS upstream, ip:port or resolv.conf file")
 	flag.StringVar(&cleanUpstream, "c", "8.8.8.8:53", "The clean/remote DNS upstream., ip:port or resolv.conf file")
 	flag.StringVar(&listen, "l", "0.0.0.0:53", "Listening address.")
+	flag.StringVar(&logLevel, "log-level", "", "Set log level: info/warn/error.")
 
 	flag.Parse()
 
@@ -34,6 +36,7 @@ func main() {
 		CleanUpstream: cleanUpstream,
 		Listen:        listen,
 		CacheCap:      1024 * 10,
+    LogLevel:      logLevel,
 	})
 	if err != nil {
 		log.Fatalln(err)

@@ -11,6 +11,7 @@ type Config struct {
 	CleanUpstream string
 	Listen        string
 	CacheCap      int // the maximum items can be cached
+  LogLevel      string
 }
 
 // Server is type of the freedns server instance
@@ -40,10 +41,19 @@ func NewServer(cfg Config) (*Server, error) {
 	if cfg.Listen == "" {
 		cfg.Listen = "127.0.0.1"
 	}
-	var err error
+  
+  if level, parseError := logrus.ParseLevel(cfg.LogLevel); parseError == nil {
+		log.SetLevel(level)
+	}
+	
+  var err error
 	if cfg.Listen, err = normalizeDnsAddress(cfg.Listen); err != nil {
 		return nil, err
 	}
+	cfg.Listen = appendDefaultPort(cfg.Listen)
+	cfg.FastDNS = appendDefaultPort(cfg.FastDNS)
+	cfg.CleanDNS = appendDefaultPort(cfg.CleanDNS)
+	s.config = cfg
 
 	var fastUpstreamProvider, cleanUpstreamProvider upstreamProvider
 	fastUpstreamProvider, err = newUpstreamProvider(cfg.FastUpstream)
