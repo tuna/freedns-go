@@ -9,10 +9,10 @@ import (
 func TestSmokingNewRunAndShutdown(t *testing.T) {
 	// new the server
 	s, err := NewServer(Config{
-		FastDNS:  "114.114.114.114",
-		CleanDNS: "8.8.8.8",
-		Listen:   "127.0.0.1:52345",
-		CacheCap: 1024 * 5,
+		FastUpstream:  "114.114.114.114",
+		CleanUpstream: "8.8.8.8",
+		Listen:        "127.0.0.1:52345",
+		CacheCap:      1024 * 5,
 	})
 	if err != nil {
 		t.Error(err)
