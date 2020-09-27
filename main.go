@@ -18,25 +18,25 @@ func main() {
 	*/
 
 	var (
-		fastDNS  string
-		cleanDNS string
-		listen   string
-		logLevel string
+		fastUpstream  string
+		cleanUpstream string
+		listen        string
+    logLevel string
 	)
 
-	flag.StringVar(&fastDNS, "f", "114.114.114.114:53", "The fast/local DNS upstream.")
-	flag.StringVar(&cleanDNS, "c", "8.8.8.8:53", "The clean/remote DNS upstream.")
+	flag.StringVar(&fastUpstream, "f", "114.114.114.114:53", "The fast/local DNS upstream, ip:port or resolv.conf file")
+	flag.StringVar(&cleanUpstream, "c", "8.8.8.8:53", "The clean/remote DNS upstream., ip:port or resolv.conf file")
 	flag.StringVar(&listen, "l", "0.0.0.0:53", "Listening address.")
 	flag.StringVar(&logLevel, "log-level", "", "Set log level: info/warn/error.")
 
 	flag.Parse()
 
 	s, err := freedns.NewServer(freedns.Config{
-		FastDNS:  fastDNS,
-		CleanDNS: cleanDNS,
-		Listen:   listen,
-		CacheCap: 1024 * 10,
-		LogLevel: logLevel,
+		FastUpstream:  fastUpstream,
+		CleanUpstream: cleanUpstream,
+		Listen:        listen,
+		CacheCap:      1024 * 10,
+    LogLevel:      logLevel,
 	})
 	if err != nil {
 		log.Fatalln(err)

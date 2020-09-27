@@ -8,7 +8,7 @@ import (
 )
 
 func Test_spoofing_proof_resolver_resolve(t *testing.T) {
-	resolver := newSpoofingProofResolver("114.114.114.114:53", "8.8.8.8:53", 1024)
+	resolver := newSpoofingProofResolver(&staticUpstreamProvider{"114.114.114.114:53"}, &staticUpstreamProvider{"8.8.8.8:53"}, 1024)
 
 	tests := []struct {
 		domain           string

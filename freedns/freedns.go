@@ -1,19 +1,17 @@
 package freedns
 
 import (
-	"strings"
-
 	"github.com/miekg/dns"
 	"github.com/sirupsen/logrus"
 )
 
 // Config stores the configuration for the Server
 type Config struct {
-	FastDNS  string
-	CleanDNS string
-	Listen   string
-	CacheCap int // the maximum items can be cached
-	LogLevel string
+	FastUpstream  string
+	CleanUpstream string
+	Listen        string
+	CacheCap      int // the maximum items can be cached
+  LogLevel      string
 }
 
 // Server is type of the freedns server instance
@@ -36,16 +34,6 @@ func (e Error) Error() string {
 	return string(e)
 }
 
-// append the 53 port number after the ip, if the ip does not has ip infomation.
-// It only works for IPv4 addresses, since it's a little hard to check if a port
-// is in the IPv6 string representation.
-func appendDefaultPort(ip string) string {
-	if strings.Contains(ip, ".") && !strings.Contains(ip, ":") {
-		return ip + ":53"
-	}
-	return ip
-}
-
 // NewServer creates a new freedns server instance.
 func NewServer(cfg Config) (*Server, error) {
 	s := &Server{}
@@ -53,14 +41,31 @@ func NewServer(cfg Config) (*Server, error) {
 	if cfg.Listen == "" {
 		cfg.Listen = "127.0.0.1"
 	}
-	if level, parseError := logrus.ParseLevel(cfg.LogLevel); parseError == nil {
+  
+  if level, parseError := logrus.ParseLevel(cfg.LogLevel); parseError == nil {
 		log.SetLevel(level)
+	}
+	
+  var err error
+	if cfg.Listen, err = normalizeDnsAddress(cfg.Listen); err != nil {
+		return nil, err
 	}
 	cfg.Listen = appendDefaultPort(cfg.Listen)
 	cfg.FastDNS = appendDefaultPort(cfg.FastDNS)
 	cfg.CleanDNS = appendDefaultPort(cfg.CleanDNS)
 	s.config = cfg
 
+	var fastUpstreamProvider, cleanUpstreamProvider upstreamProvider
+	fastUpstreamProvider, err = newUpstreamProvider(cfg.FastUpstream)
+	if err != nil {
+		return nil, err
+	}
+	cleanUpstreamProvider, err = newUpstreamProvider(cfg.CleanUpstream)
+	if err != nil {
+		return nil, err
+	}
+
+	s.config = cfg
 	s.udpServer = &dns.Server{
 		Addr: s.config.Listen,
 		Net:  "udp",
@@ -79,7 +84,7 @@ func NewServer(cfg Config) (*Server, error) {
 
 	s.recordsCache = newDNSCache(cfg.CacheCap)
 
-	s.resolver = newSpoofingProofResolver(cfg.FastDNS, cfg.CleanDNS, cfg.CacheCap)
+	s.resolver = newSpoofingProofResolver(fastUpstreamProvider, cleanUpstreamProvider, cfg.CacheCap)
 
 	return s, nil
 }
