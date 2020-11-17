@@ -71,7 +71,7 @@ func (resolver *spoofingProofResolver) resolve(q dns.Question, recursion bool, n
 			// The fast upstream returns the success result
 			if r.res != nil && r.res.Rcode == dns.RcodeSuccess {
 				// recheck if it is a china domain, and update the cache
-				// we do this recheck in case that the clean DNS spoofs the domain and returns an IP in China
+				// we do this recheck in case that the GFW spoofs the domain and returns an IP in China
 				if containsA(r.res) && !containsChinaip(r.res) {
 					resolver.cnDomains.Set(q.Name, false)
 				} else {
