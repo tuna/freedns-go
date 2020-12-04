@@ -6,7 +6,7 @@ Optimized DNS Server for Chinese users.
 
 ## Usage
 
-Download the prebuilt binary from the [releases](https://github.com/Chenyao2333/freedns-go/releases) page. Use `-f 114.114.114.114:53` to set the upstream in China, and use `-c 8.8.8.8:53` to set the upstream that retruns usable results for forigen sites.
+Download the prebuilt binary from the [releases](https://github.com/Chenyao2333/freedns-go/releases) page. Use `-f 114.114.114.114:53` to set the upstream in China, and use `-c 8.8.8.8:53` to set the upstream that returns usable results for foreign sites.
 
 ```
 sudo ./freedns-go -f 114.114.114.114:53 -c 8.8.8.8:53 -l 0.0.0.0:53
@@ -25,7 +25,7 @@ host google.com 127.0.0.1
 
 ### How does it work?
 
-`freedns-go` tries to dispatch the request to a DNS upstream located in china, which is fast but maybe poisoned. If it detected any IP addresses not belonged to China, which means there is a chance that the domain is spoofed, then `freedns-go` uses the foreign upstream.
+`freedns-go` tries to dispatch the request to a DNS upstream located in China, which is fast but maybe poisoned. If it detected any IP addresses not belonged to China, which means there is a chance that the domain is spoofed, then `freedns-go` uses the foreign upstream.
 
 The cache policy is lazy cache. If there are some records are expired but in the cache, it will return the cached records and update it on the background.
 
