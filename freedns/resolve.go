@@ -63,39 +63,41 @@ func (resolver *spoofingProofResolver) resolve(q dns.Question, recursion bool, n
 		cleanCh <- result{fail, Error("timeout")}
 	}()
 
-	// 1. if we can distinguish if it is a china domain, we directly uses the right upstream
-	isCN, ok := resolver.cnDomains.Get(q.Name)
-	if ok {
-		if isCN.(bool) {
-			r := <-fastCh
-			// The fast upstream returns the success result
-			if r.res != nil && r.res.Rcode == dns.RcodeSuccess {
-				// recheck if it is a china domain, and update the cache
-				// we do this recheck in case that the GFW spoofs the domain and returns an IP in China
-				if containsA(r.res) && !containsChinaip(r.res) {
-					resolver.cnDomains.Set(q.Name, false)
-				} else {
-					return r.res, fastUpstream
-				}
+	var r result
+	var upstream string
+
+	for i := 0; i < 1; i++ {
+		// 1. if we can distinguish if it is a china domain, we directly uses the right upstream
+		isCN, ok := resolver.cnDomains.Get(q.Name)
+		if ok {
+			if isCN.(bool) {
+				r = <-fastCh
+				upstream = fastUpstream
+			} else {
+				r = <-cleanCh
+				upstream = cleanUpstream
 			}
+			break
 		}
-		r := <-cleanCh
-		return r.res, cleanUpstream
+
+		// 2. try to resolve by fast dns. if it contains A record which means we can decide if this is a china domain
+		r = <-fastCh
+		upstream = fastUpstream
+		if r.res != nil && r.res.Rcode == dns.RcodeSuccess && containsA(r.res) && containsChinaip(r.res) {
+			break
+		}
+
+		// 3. the domain may not belong to China, use the clean upstream
+		r = <-cleanCh
+		upstream = cleanUpstream
 	}
 
-	// 2. try to resolve by fast dns. if it contains A record which means we can decide if this is a china domain
-	r := <-fastCh
+	// update cnDomains cache
 	if r.res != nil && r.res.Rcode == dns.RcodeSuccess && containsA(r.res) {
-		if containsChinaip(r.res) {
-			resolver.cnDomains.Set(q.Name, true)
-			return r.res, fastUpstream
-		}
-		resolver.cnDomains.Set(q.Name, false)
+		resolver.cnDomains.Set(q.Name, containsChinaip(r.res))
 	}
 
-	// 3. the domain may not belong to China, use the clean upstream
-	r = <-cleanCh
-	return r.res, cleanUpstream
+	return r.res, upstream
 }
 
 func naiveResolve(q dns.Question, recursion bool, net string, upstream string) (*dns.Msg, error) {
