@@ -1,8 +1,12 @@
 package chinaip
 
 import (
-	"strconv"
-	"strings"
+	"bufio"
+	"encoding/binary"
+	"log"
+	"net"
+	"os"
+	"sort"
 )
 
 type Error string
@@ -11,31 +15,13 @@ func (e Error) Error() string {
 	return string(e)
 }
 
-// IP2Int converts IP from string format to int format
-func IP2Int(ip string) (uint32, error) {
-	strs := strings.Split(ip, ".")
-	if len(strs) != 4 {
-		return 0, Error("not ipv4 addr")
-	}
-	ret := uint32(0)
-	mul := uint32(1)
-	for i := 3; i >= 0; i-- {
-		a, err := strconv.Atoi(strs[i])
-		if err != nil {
-			return 0, err
-		}
-		ret += uint32(a) * mul
-		mul *= 256
-	}
-	return ret, nil
-}
-
 // IsChinaIP returns whether an IPv4 address belongs to China
 func IsChinaIP(ip string) bool {
-	var i, err = IP2Int(ip)
-	if err != nil {
+	parsed := net.ParseIP(ip)
+	if parsed == nil {
 		return false
 	}
+	i := binary.BigEndian.Uint32(parsed.To4())
 	var l = 0
 	var r = len(chinaIPs) - 1
 	for l <= r {
@@ -49,4 +35,31 @@ func IsChinaIP(ip string) bool {
 		}
 	}
 	return false
+}
+
+var chinaIPs = [][]uint32{}
+
+// IPv4 only
+func LoadChinaIP(name string) {
+	file, err := os.Open(name)
+	if err != nil {
+		log.Fatalln(err)
+		os.Exit(-1)
+	}
+	defer file.Close()
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		_, cidr, err := net.ParseCIDR(line)
+		if err != nil {
+			continue
+		}
+		start := binary.BigEndian.Uint32(cidr.IP)
+		end := start + ^uint32(0) - binary.BigEndian.Uint32(cidr.Mask)
+		chinaIPs = append(chinaIPs, []uint32{start, end})
+	}
+	// sort by start is ok, assuming there's no overlap
+	sort.Slice(chinaIPs, func(i, j int) bool {
+		return chinaIPs[i][0] < chinaIPs[j][0]
+	})
 }

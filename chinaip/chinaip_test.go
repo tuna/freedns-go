@@ -1,9 +1,13 @@
 package chinaip_test
 
-import "testing"
-import "github.com/tuna/freedns-go/chinaip"
+import (
+	"testing"
+
+	"github.com/tuna/freedns-go/chinaip"
+)
 
 func TestIsChinaIP(t *testing.T) {
+	chinaip.LoadChinaIP("china.txt")
 	var cn_ips = []string{"114.114.114.114", "220.181.57.216"}
 	var non_cn_ips = []string{"8.8.8.8", "172.217.14.78", "255.255.255.255", "wtf", "114.114.114"}
 

@@ -7,6 +7,7 @@ import (
 
 	_ "net/http/pprof"
 
+	"github.com/tuna/freedns-go/chinaip"
 	"github.com/tuna/freedns-go/freedns"
 )
 
@@ -22,6 +23,7 @@ func main() {
 		cleanUpstream string
 		listen        string
 		logLevel      string
+		chinaIpFile   string
 		// cache         bool
 	)
 
@@ -30,6 +32,7 @@ func main() {
 	flag.StringVar(&listen, "l", "0.0.0.0:53", "Listening address.")
 	// flag.BoolVar(&cache, "cache", true, "Enable cache.")
 	flag.StringVar(&logLevel, "log-level", "", "Set log level: info/warn/error.")
+	flag.StringVar(&chinaIpFile, "ip-list", "china.txt", "A list of China IP addresses.")
 
 	flag.Parse()
 
@@ -44,6 +47,8 @@ func main() {
 		log.Fatalln(err)
 		os.Exit(-1)
 	}
+
+	chinaip.LoadChinaIP(chinaIpFile)
 
 	log.Fatalln(s.Run())
 	os.Exit(-1)

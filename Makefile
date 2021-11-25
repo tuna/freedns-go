@@ -13,8 +13,7 @@ build_all:
 	env GOOS=darwin GOARCH=arm64   go build -o ./build/freedns-go-macos-arm64
 
 update_db:
-	python3 ./chinaip/update_db.py
-	mv ./db.go ./chinaip/db.go
+	curl -s 'https://raw.githubusercontent.com/17mon/china_ip_list/master/china_ip_list.txt' > chinaip/china.txt
 
 test:
 	go test ./chinaip
